@@ -48,7 +48,7 @@ class TimeSeriesPredictor(nn.Module):
 input_dim = 1
 hidden_dim = 20
 learning_rate = 0.01
-epochs = 3000
+epochs = 4000
 
 # Instantiate model, define loss and optimizer
 model = TimeSeriesPredictor(input_dim, hidden_dim)
@@ -163,20 +163,21 @@ attitudes_log = [attitude_rates]
 
 # Simulate
 for t in range(time_steps):
-    control_input_p = pid_p.compute(attitude_rates[0])
-    control_input_q = pid_q.compute(attitude_rates[1])
-    control_input_r = pid_r.compute(attitude_rates[2])
+    for _ in range(10):
+        control_input_p = pid_p.compute(attitude_rates[0])
+        control_input_q = pid_q.compute(attitude_rates[1])
+        control_input_r = pid_r.compute(attitude_rates[2])
 
-    control_input = np.array([control_input_p, control_input_q, control_input_r])
+        control_input = np.array([control_input_p, control_input_q, control_input_r])
 
-    rate_dots = attitude_dynamics(attitude_rates, moments_of_inertia, control_input, disturbances[t+60480],disturbances_estimate[t-1])
-    attitude_rates = attitude_rates + rate_dots * dt
-    # Update Euler angles
-    euler_dot = euler_rates(attitude_rates, euler_angles)
-    euler_angles = euler_angles + euler_dot * dt
+        rate_dots = attitude_dynamics(attitude_rates, moments_of_inertia, control_input, disturbances[t+60480],disturbances_estimate[t-1])
+        attitude_rates = attitude_rates + rate_dots * dt
+        # Update Euler angles
+        euler_dot = euler_rates(attitude_rates, euler_angles)
+        euler_angles = euler_angles + euler_dot * dt
 
-    attitudes_log.append(attitude_rates.copy())  # Use copy() to append a separate array
-    euler_log.append(euler_angles.copy())
+        attitudes_log.append(attitude_rates.copy())  # Use copy() to append a separate array
+        euler_log.append(euler_angles.copy())
 
 # Convert the log to a numpy array for easy indexing
 attitudes_log = np.array(attitudes_log)
@@ -186,20 +187,20 @@ euler_log=np.array(euler_log)
 plt.figure(figsize=(15, 9))
 
 plt.subplot(3, 1, 1)
-plt.plot(attitudes_log[1000:, 0], label="p rate")
-plt.axhline(y=0, color='r', linestyle='--')
+plt.plot(attitudes_log[1000:, 0]/1e-6, label="p (1e-6rad/s)")
+# plt.axhline(y=0, color='r', linestyle='--')
 plt.title("p rate over Time")
 plt.legend()
 
 plt.subplot(3, 1, 2)
-plt.plot(attitudes_log[1000:, 1], label="q rate")
+plt.plot(attitudes_log[1000:, 1]/1e-6, label="q (1e-6rad/s)")
 # plt.axhline(y=0, color='r', linestyle='--')
 plt.title("q rate over Time")
 plt.legend()
 
 plt.subplot(3, 1, 3)
-plt.plot(attitudes_log[1000:, 2], label="r rate")
-plt.axhline(y=0, color='r', linestyle='--')
+plt.plot(attitudes_log[1000:, 2]/1e-6, label="r (1e-6rad/s)")
+# plt.axhline(y=0, color='r', linestyle='--')
 plt.title("r rate over Time")
 plt.legend()
 
@@ -210,17 +211,17 @@ plt.show()
 plt.figure(figsize=(15, 9))
 
 plt.subplot(3, 1, 1)
-plt.plot(euler_log[1000:, 0], label="Roll (phi)")
+plt.plot(euler_log[1000:, 0]/4.84814e-6, label="Roll (arcsec)")
 plt.title("Roll over Time")
 plt.legend()
 
 plt.subplot(3, 1, 2)
-plt.plot(euler_log[1000:, 1], label="Pitch (theta)")
+plt.plot(euler_log[1000:, 1]/4.84814e-6, label="Pitch (arcsec)")
 plt.title("Pitch over Time")
 plt.legend()
 
 plt.subplot(3, 1, 3)
-plt.plot(euler_log[1000:, 2], label="Yaw (psi)")
+plt.plot(euler_log[1000:, 2]/4.84814e-6, label="Yaw (arcsec)")
 plt.title("Yaw over Time")
 plt.legend()
 
