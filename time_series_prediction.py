@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import numpy.fft as fft
 
 # Load the .mat file and extract data
 mat_data = scipy.io.loadmat('error1.mat')
@@ -48,7 +49,7 @@ class TimeSeriesPredictor(nn.Module):
 input_dim = 1
 hidden_dim = 20
 learning_rate = 0.01
-epochs = 4000
+epochs = 10
 
 # Instantiate model, define loss and optimizer
 model = TimeSeriesPredictor(input_dim, hidden_dim)
@@ -115,9 +116,9 @@ def attitude_dynamics(attitude_rates, moments_of_inertia, control_input, disturb
 
 
     # Incorporate disturbances into external torques
-    tau_p += disturbance_3d[0]-disturbance_estimate_3d[0]
-    tau_q += disturbance_3d[1]-disturbance_estimate_3d[1]
-    tau_r += disturbance_3d[2]-disturbance_estimate_3d[2]
+    tau_p += disturbance_3d[0]-0*disturbance_estimate_3d[0]
+    tau_q += disturbance_3d[1]-0*disturbance_estimate_3d[1]
+    tau_r += disturbance_3d[2]-0*disturbance_estimate_3d[2]
 
     # Euler's rotational equations
     p_dot = (tau_p + (Iz - Iy) * q * r) / Ix
@@ -223,6 +224,82 @@ plt.legend()
 plt.subplot(3, 1, 3)
 plt.plot(euler_log[1000:, 2]/4.84814e-6, label="Yaw (arcsec)")
 plt.title("Yaw over Time")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+def compute_psd(data, dt):
+    # Compute the FFT and the corresponding frequencies
+    data_fft = fft.fft(data)
+    frequencies = fft.fftfreq(len(data), dt)
+    
+    # Compute the power spectral density (PSD)
+    psd = np.abs(data_fft)**2
+    
+    return frequencies, psd
+
+
+# Compute PSD for euler_log and attitudes_log
+euler_frequencies, euler_psd = compute_psd(euler_log, dt)
+attitudes_frequencies, attitudes_psd = compute_psd(attitudes_log, dt)
+
+# Filter function to get values within the desired frequency range
+def filter_frequency(frequencies, psd):
+    mask = (frequencies >= 1e-3) & (frequencies <= 1e-2)
+    return frequencies[mask], psd[mask]
+
+# Filter the frequencies and PSD values
+euler_frequencies_filtered, euler_psd_filtered = filter_frequency(euler_frequencies, euler_psd)
+attitudes_frequencies_filtered, attitudes_psd_filtered = filter_frequency(attitudes_frequencies, attitudes_psd)
+
+# Plotting
+plt.figure(figsize=(15, 12))
+
+# Plot for euler_log
+plt.subplot(3, 1, 1)
+plt.plot(euler_frequencies_filtered, euler_psd_filtered[:, 0], label="Roll (phi) PSD")
+plt.title("Power Spectral Density of Roll")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.legend()
+
+plt.subplot(3, 1, 2)
+plt.plot(euler_frequencies_filtered, euler_psd_filtered[:, 1], label="Pitch (theta) PSD")
+plt.title("Power Spectral Density of Pitch")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.legend()
+
+plt.subplot(3, 1, 3)
+plt.plot(euler_frequencies_filtered, euler_psd_filtered[:, 2], label="Yaw (psi) PSD")
+plt.title("Power Spectral Density of Yaw")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.legend()
+
+# Separate figure for attitudes_log
+plt.figure(figsize=(15, 9))
+
+plt.subplot(3, 1, 1)
+plt.plot(attitudes_frequencies_filtered, attitudes_psd_filtered[:, 0], label="p rate PSD")
+plt.title("Power Spectral Density of p rate")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.legend()
+
+plt.subplot(3, 1, 2)
+plt.plot(attitudes_frequencies_filtered, attitudes_psd_filtered[:, 1], label="q rate PSD")
+plt.title("Power Spectral Density of q rate")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
+plt.legend()
+
+plt.subplot(3, 1, 3)
+plt.plot(attitudes_frequencies_filtered, attitudes_psd_filtered[:, 2], label="r rate PSD")
+plt.title("Power Spectral Density of r rate")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("PSD")
 plt.legend()
 
 plt.tight_layout()
